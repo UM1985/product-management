@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Krishna Automobiles - Invoice Generator</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <style>
+    body {
+      background-color: #1f1f1f;
+      color: white;
+    }
+    .invoice-table th, .invoice-table td {
+      background-color: #2c2c2c;
+      color: white;
+    }
+    .form-control-edit {
+      width: 80px;
+      margin: auto;
+    }
+  </style>
+</head>
+<body>
+
+<nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+  <div class="container-fluid">
+    <a class="navbar-brand fw-bold" href="index.html">Krishna Automobiles</a>
+    <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+      <span class="navbar-toggler-icon"></span>
+    </button>
+    
+    <div class="collapse navbar-collapse" id="navbarNav">
+      <ul class="navbar-nav ms-auto">
+        <li class="nav-item">
+          <a class="nav-link" href="index.html">🏠 Home</a>
+        </li>
+        <li class="nav-item">
+          <a class="nav-link" href="products.html">📦 Inventory</a>
+        </li>
+        <li class="nav-item">
+          <a class="nav-link" href="invoice.html">🧾 Invoice</a>
+        </li>
+        <li class="nav-item">
+          <a class="nav-link" href="history.html">📜 History</a>
+        </li>
+      </ul>
+    </div>
+  </div>
+</nav>
+
+
+  <div class="container py-5 ">
+    <h1 class="text-center mb-4">Invoice Generator</h1>
+
+    <div class="row mb-3">
+      <div class="col-md-4">
+        <input list="productOptions" id="productInput" class="form-control" placeholder="Start typing a product">
+        <datalist id="productOptions"></datalist>
+      </div>
+      <div class="col-md-2">
+        <input type="number" id="quantityInput" class="form-control" placeholder="Qty" min="1">
+      </div>
+      <div class="col-md-2">
+        <input type="number" id="priceInput" class="form-control" placeholder="Price" min="0">
+      </div>
+      <div class="col-md-4">
+        <button class="btn btn-success" onclick="addToInvoice()">Add to Invoice</button>
+      </div>
+    </div>
+
+    <table class="table table-bordered invoice-table text-center">
+      <thead>
+        <tr>
+          <th>#</th>
+          <th>Product</th>
+          <th>Quantity</th>
+          <th>Price</th>
+          <th>Total</th>
+        </tr>
+      </thead>
+      <tbody id="invoiceTable"></tbody>
+    </table>
+
+    <div class="text-end me-5">
+      <h5 id="grandTotal">Grand Total: ₹0</h5>
+    </div>
+
+    <div class="text-center">
+      <button class="btn btn-primary" onclick="downloadInvoice()">Download Invoice</button>
+    </div>
+  </div>
+
+  <script>
+    let products = JSON.parse(localStorage.getItem("products")) || [];
+    let invoiceItems = [];
+
+    const saveProducts = () => localStorage.setItem("products", JSON.stringify(products));
+
+    const loadProductOptions = () => {
+      const dataList = document.getElementById("productOptions");
+      dataList.innerHTML = "";
+      products.forEach(p => {
+        if (p.stock > 0) {
+          dataList.innerHTML += `<option value="${p.name}"></option>`;
+        }
+      });
+    };
+
+    const getProductByName = (name) => products.find(p => p.name.toLowerCase() === name.toLowerCase());
+
+    const updateGrandTotal = () => {
+      const grandTotal = invoiceItems.reduce((sum, item) => sum + item.price * item.quantity, 0);
+      document.getElementById("grandTotal").innerText = `Grand Total: ₹${grandTotal}`;
+    };
+
+    const renderInvoice = () => {
+      const table = document.getElementById("invoiceTable");
+      table.innerHTML = "";
+      invoiceItems.forEach((item, i) => {
+        const total = item.price * item.quantity;
+        table.innerHTML += `
+          <tr>
+            <td>${i + 1}</td>
+            <td>${item.name}</td>
+            <td>${item.quantity}</td>
+            <td>
+              <input type="number" class="form-control form-control-edit" value="${item.price}" min="0" onchange="updatePrice(${i}, this.value)">
+            </td>
+            <td>₹${total}</td>
+          </tr>
+        `;
+      });
+      updateGrandTotal();
+    };
+
+    const addToInvoice = () => {
+      const nameInput = document.getElementById("productInput").value.trim();
+      const quantity = parseInt(document.getElementById("quantityInput").value);
+      let price = parseFloat(document.getElementById("priceInput").value);
+
+      const product = getProductByName(nameInput);
+
+      if (!product || isNaN(quantity) || quantity < 1) {
+        return alert("Please enter a valid product and quantity.");
+      }
+
+      if (product.stock < quantity) {
+        return alert("Insufficient stock.");
+      }
+
+      if (isNaN(price)) price = product.price || 0;
+
+      product.stock -= quantity;
+      saveProducts();
+
+      invoiceItems.push({ name: product.name, quantity, price });
+      renderInvoice();
+      loadProductOptions();
+
+      if (product.stock <= 3) {
+        alert(`⚠️ Low stock for ${product.name}. Only ${product.stock} left.`);
+      }
+
+      document.getElementById("productInput").value = "";
+      document.getElementById("quantityInput").value = "";
+      document.getElementById("priceInput").value = "";
+    };
+
+    const updatePrice = (index, newPrice) => {
+      const parsed = parseFloat(newPrice);
+      if (!isNaN(parsed) && parsed >= 0) {
+        invoiceItems[index].price = parsed;
+        renderInvoice();
+      }
+    };
+
+    const downloadInvoice = () => {
+      const { jsPDF } = window.jspdf;
+      const doc = new jsPDF();
+      doc.setFontSize(18);
+      doc.text("Krishna Automobiles - Invoice", 20, 20);
+      doc.setFontSize(12);
+
+      let y = 30;
+      doc.text("S.No", 10, y);
+      doc.text("Product", 40, y);
+      doc.text("Qty", 100, y);
+      doc.text("Price", 120, y);
+      doc.text("Total", 150, y);
+
+      invoiceItems.forEach((item, i) => {
+        y += 10;
+        doc.text(`${i + 1}`, 10, y);
+        doc.text(item.name, 40, y);
+        doc.text(`${item.quantity}`, 100, y);
+        doc.text(`₹${item.price}`, 120, y);
+        doc.text(`₹${item.price * item.quantity}`, 150, y);
+      });
+
+      y += 15;
+      const grandTotal = invoiceItems.reduce((sum, item) => sum + item.price * item.quantity, 0);
+      doc.setFontSize(14);
+      doc.text(`Grand Total: ₹${grandTotal}`, 120, y);
+
+      doc.save("invoice.pdf");
+    };
+
+    window.addEventListener("storage", (e) => {
+      if (e.key === "products") {
+        products = JSON.parse(localStorage.getItem("products")) || [];
+        loadProductOptions();
+      }
+    });
+
+    loadProductOptions();
+    renderInvoice();
+  </script>
+</body>
+</html>
