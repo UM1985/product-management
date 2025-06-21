@@ -1,0 +1,396 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Invoice History - Krishna Automobiles</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link
+      href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css"
+      rel="stylesheet"
+    />
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+      body {
+        background-color: #1f1f1f;
+        color: white;
+      }
+      th {
+        background-color: #ff6f00;
+        color: white;
+      }
+      td select {
+        background-color: #343a40;
+        color: white;
+        border: 1px solid #6c757d;
+      }
+      .summary-box {
+        background-color: #2c2c2c;
+        padding: 15px;
+        border-radius: 8px;
+      }
+      .inline-select {
+        display: inline-block;
+        width: auto;
+        margin-left: 5px;
+      }
+      #invoiceChart {
+        max-width: 350px;
+        margin: auto;
+        background-color: white;
+        padding: 10px;
+        border-radius: 10px;
+      }
+      #searchInput {
+        text-transform: uppercase;
+      }
+    </style>
+  </head>
+  <body>
+    <nav class="navbar navbar-expand-lg navbar-dark bg-dark sticky-top shadow">
+      <div class="container-fluid">
+        <a class="navbar-brand fw-bold" href="index.html"
+          >Krishna Automobiles</a
+        >
+        <div class="collapse navbar-collapse" id="navbarNav">
+          <ul class="navbar-nav ms-auto">
+            <li class="nav-item">
+              <a class="nav-link" href="index.html">🏠 Home</a>
+            </li>
+            <li class="nav-item">
+              <a class="nav-link" href="products.html">📦 Inventory</a>
+            </li>
+            <li class="nav-item">
+              <a class="nav-link" href="invoice.html">🧾 Invoice</a>
+            </li>
+            <li class="nav-item">
+              <a class="nav-link active" href="history.html">📜 History</a>
+            </li>
+            <li class="nav-item">
+              <a class="nav-link text-danger" href="#" onclick="logout()"
+                >🚪 Logout</a
+              >
+            </li>
+          </ul>
+        </div>
+      </div>
+    </nav>
+
+    <div class="container py-4">
+      <div class="d-flex justify-content-between align-items-center mb-3">
+        <h2>Invoice History</h2>
+        <button class="btn btn-danger" onclick="clearHistory()">
+          Clear All
+        </button>
+      </div>
+
+      <!-- Filters -->
+      <div class="row mb-3">
+        <div class="col-md-3">
+          <input
+            type="date"
+            id="filterDate"
+            class="form-control"
+            onchange="applyFilters()"
+          />
+        </div>
+        <div class="col-md-3">
+          <select
+            id="filterMode"
+            class="form-control"
+            onchange="applyFilters()"
+          >
+            <option value="">All Modes</option>
+            <option value="Cash">Cash</option>
+            <option value="Online">Online</option>
+          </select>
+        </div>
+        <div class="col-md-3">
+          <select
+            id="filterStatus"
+            class="form-control"
+            onchange="applyFilters()"
+          >
+            <option value="">All Status</option>
+            <option value="Paid">Paid</option>
+            <option value="Pending">Pending</option>
+          </select>
+        </div>
+        <div class="col-md-3">
+          <input
+            type="text"
+            id="searchInput"
+            class="form-control"
+            placeholder="Search Name or Mobile"
+            oninput="applyFilters()"
+          />
+        </div>
+      </div>
+
+      <!-- Summary -->
+      <div class="row text-center mb-4">
+        <div class="col-md-4">
+          <div class="summary-box">
+            <h5>Total Cash</h5>
+            <p id="totalCash">₹0</p>
+          </div>
+        </div>
+        <div class="col-md-4">
+          <div class="summary-box">
+            <h5>Total Online</h5>
+            <p id="totalOnline">₹0</p>
+          </div>
+        </div>
+        <div class="col-md-4">
+          <div class="summary-box">
+            <h5>Total Pending</h5>
+            <p id="totalPending">₹0</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Chart -->
+      <div class="text-center mb-4">
+        <canvas id="invoiceChart" height="200"></canvas>
+      </div>
+
+      <!-- Table -->
+      <table class="table table-bordered text-center">
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>Customer</th>
+            <th>Vehicle</th>
+            <th>Mobile</th>
+            <th>Date</th>
+            <th>Total</th>
+            <th>Payment</th>
+            <th>Details</th>
+          </tr>
+        </thead>
+        <tbody id="historyTable"></tbody>
+      </table>
+    </div>
+
+    <!-- Modal -->
+    <div class="modal fade" id="detailsModal" tabindex="-1">
+      <div class="modal-dialog modal-lg">
+        <div class="modal-content bg-dark text-white">
+          <div class="modal-header">
+            <h5 class="modal-title">Invoice Details</h5>
+            <button
+              type="button"
+              class="btn-close btn-close-white"
+              data-bs-dismiss="modal"
+            ></button>
+          </div>
+          <div class="modal-body">
+            <table class="table table-bordered text-white text-center">
+              <thead>
+                <tr>
+                  <th>#</th>
+                  <th>Product</th>
+                  <th>Qty</th>
+                  <th>Price</th>
+                  <th>Amount</th>
+                </tr>
+              </thead>
+              <tbody id="modalTableBody"></tbody>
+            </table>
+            <div class="text-end fw-bold">
+              <span id="modalTotal"></span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+      let historyData =
+        JSON.parse(localStorage.getItem("invoiceHistory")) || [];
+
+      function clearHistory() {
+        if (confirm("Are you sure you want to clear all invoice history?")) {
+          localStorage.removeItem("invoiceHistory");
+          location.reload();
+        }
+      }
+
+      function updateStatus(index, value) {
+        historyData[index].status = value;
+        if (value === "Paid" && !historyData[index].paymentMode) {
+          historyData[index].paymentMode = "Cash";
+        } else if (value === "Pending") {
+          historyData[index].paymentMode = "";
+        }
+        saveAndRender();
+      }
+
+      function updateMode(index, value) {
+        historyData[index].paymentMode = value;
+        saveAndRender();
+      }
+
+      function showDetails(index) {
+        const entry = historyData[index];
+        const modalBody = document.getElementById("modalTableBody");
+        const modalTotal = document.getElementById("modalTotal");
+        modalBody.innerHTML = "";
+        entry.items.forEach((item, i) => {
+          modalBody.innerHTML += `
+        <tr>
+          <td>${i + 1}</td>
+          <td>${item.name}</td>
+          <td>${item.quantity}</td>
+          <td>₹${item.price}</td>
+          <td>₹${item.price * item.quantity}</td>
+        </tr>
+      `;
+        });
+        modalTotal.textContent = `Grand Total: ₹${entry.total}`;
+        new bootstrap.Modal(document.getElementById("detailsModal")).show();
+      }
+
+      function applyFilters() {
+        const date = document.getElementById("filterDate").value;
+        const mode = document.getElementById("filterMode").value;
+        const status = document.getElementById("filterStatus").value;
+        const search = document
+          .getElementById("searchInput")
+          .value.toUpperCase();
+
+        const filtered = historyData.filter((entry) => {
+          const matchDate = !date || entry.date === date;
+          const matchStatus = !status || entry.status === status;
+          const matchMode = !mode || entry.paymentMode === mode;
+          const matchSearch =
+            !search ||
+            entry.customer.toUpperCase().includes(search) ||
+            entry.mobile.includes(search);
+          return matchDate && matchStatus && matchMode && matchSearch;
+        });
+
+        renderTable(filtered);
+        updateSummary(filtered);
+        updateChart(filtered);
+      }
+
+      function updateSummary(data) {
+        let cash = 0,
+          online = 0,
+          pending = 0;
+        data.forEach((entry) => {
+          if (entry.status === "Paid") {
+            if (entry.paymentMode === "Cash") cash += entry.total;
+            if (entry.paymentMode === "Online") online += entry.total;
+          } else if (entry.status === "Pending") {
+            pending += entry.total;
+          }
+        });
+        document.getElementById("totalCash").innerText = `₹${cash}`;
+        document.getElementById("totalOnline").innerText = `₹${online}`;
+        document.getElementById("totalPending").innerText = `₹${pending}`;
+      }
+
+      let pieChart;
+      function updateChart(data) {
+        let cash = 0,
+          online = 0,
+          pending = 0;
+        data.forEach((entry) => {
+          if (entry.status === "Paid") {
+            if (entry.paymentMode === "Cash") cash += entry.total;
+            if (entry.paymentMode === "Online") online += entry.total;
+          } else {
+            pending += entry.total;
+          }
+        });
+
+        const ctx = document.getElementById("invoiceChart").getContext("2d");
+        if (pieChart) pieChart.destroy();
+        pieChart = new Chart(ctx, {
+          type: "pie",
+          data: {
+            labels: ["Cash", "Online", "Pending"],
+            datasets: [
+              {
+                data: [cash, online, pending],
+                backgroundColor: ["#28a745", "#007bff", "#ffc107"],
+              },
+            ],
+          },
+          options: {
+            plugins: {
+              legend: {
+                labels: { color: "#000" },
+              },
+            },
+          },
+        });
+      }
+
+      function saveAndRender() {
+        localStorage.setItem("invoiceHistory", JSON.stringify(historyData));
+        applyFilters();
+      }
+
+      function renderTable(data) {
+        const table = document.getElementById("historyTable");
+        table.innerHTML = "";
+        data.forEach((entry, i) => {
+          if (!entry.status) entry.status = "Pending";
+          if (!entry.paymentMode) entry.paymentMode = "";
+
+          table.innerHTML += `
+        <tr>
+          <td>${i + 1}</td>
+          <td>${entry.customer}</td>
+          <td>${entry.vehicle}</td>
+          <td>${entry.mobile}</td>
+          <td>${entry.date}</td>
+          <td>₹${entry.total}</td>
+          <td>
+            <select onchange="updateStatus(${i}, this.value)">
+              <option value="Pending" ${
+                entry.status === "Pending" ? "selected" : ""
+              }>Pending</option>
+              <option value="Paid" ${
+                entry.status === "Paid" ? "selected" : ""
+              }>Paid</option>
+            </select>
+            <select class="inline-select mt-2" id="mode-${i}" style="${
+            entry.status === "Paid" ? "" : "display:none;"
+          }" onchange="updateMode(${i}, this.value)">
+              <option value="Cash" ${
+                entry.paymentMode === "Cash" ? "selected" : ""
+              }>Cash</option>
+              <option value="Online" ${
+                entry.paymentMode === "Online" ? "selected" : ""
+              }>Online</option>
+            </select>
+          </td>
+          <td><button class="btn btn-sm btn-info" onclick="showDetails(${i})">View</button></td>
+        </tr>
+      `;
+        });
+
+        data.forEach((entry, i) => {
+          const mode = document.getElementById(`mode-${i}`);
+          if (mode)
+            mode.style.display =
+              entry.status === "Paid" ? "inline-block" : "none";
+        });
+      }
+
+      applyFilters();
+    </script>
+    <script src="session.js"></script>
+    <script>
+  function logout() {
+    localStorage.removeItem("isLoggedIn");
+    location.href = "login.html";
+  }
+</script>
+
+  </body>
+</html>
